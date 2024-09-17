@@ -17,15 +17,15 @@ class BaseTestCase(TestCase):
     def logout_user(self):
         self.client.logout()
 
-class UserPermissionsTests(APITestCase):
+class UserPermissionsTests(BaseTestCase, APITestCase):
     
     def setUp(self):
-        super().setUp()  
+        super().setUp()  # Calls the setup from BaseTestCase
         
         self.user = User.objects.create_user(username='user', password='password')
         self.admin = User.objects.create_superuser(username='admin', password='password')
 
-        self.client.login(username='user', password='password')
+        self.authenticate_user('user', 'password')
 
         self.account1 = InvestmentAccount.objects.create(name='View Only Account')
         self.account2 = InvestmentAccount.objects.create(name='CRUD Account')
