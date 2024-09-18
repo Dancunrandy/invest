@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_datetime
 from django.db import models
 
 from .models import InvestmentAccount, Transaction
@@ -17,7 +17,6 @@ class InvestmentAccountViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return self.queryset.filter(users=self.request.user)
 
-# TransactionViewSet to manage transactions
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
@@ -27,11 +26,10 @@ class TransactionViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
     def get_queryset(self):
-        # Filter transactions based on user's permissions and accounts
         return self.queryset.filter(account__users=self.request.user)
 
 class AdminTransactionViewSet(viewsets.ViewSet):
-    permission_classes = [IsAdminUser]  # Only admin can access this view
+    permission_classes = [IsAdminUser]
 
     @action(detail=False, methods=['get'], url_path='admin-transactions')
     def list_user_transactions(self, request):
@@ -39,13 +37,16 @@ class AdminTransactionViewSet(viewsets.ViewSet):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        
         transactions = Transaction.objects.filter(user__id=user_id)
 
         if start_date:
-            transactions = transactions.filter(timestamp__gte=parse_date(start_date))
+            start_date = parse_datetime(start_date)
+            if start_date:
+                transactions = transactions.filter(timestamp__gte=start_date)
         if end_date:
-            transactions = transactions.filter(timestamp__lte=parse_date(end_date))
+            end_date = parse_datetime(end_date)
+            if end_date:
+                transactions = transactions.filter(timestamp__lte=end_date)
 
         total_balance = transactions.aggregate(total=models.Sum('amount'))['total'] or 0
 
