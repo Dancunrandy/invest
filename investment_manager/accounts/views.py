@@ -1,11 +1,12 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from django.utils.dateparse import parse_datetime
 from django.db import models
 
-from .models import InvestmentAccount, Transaction
+from .models import InvestmentAccount, Transaction, AccountPermission
 from .serializers import InvestmentAccountSerializer, TransactionSerializer
 from .permissions import HasAccountPermission
 
@@ -23,10 +24,32 @@ class TransactionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasAccountPermission]
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        # Get the investment account from the serializer's validated data
+        account = serializer.validated_data.get('account')  # Ensure this field exists in the serializer
+        
+        # Check user's account permission for the specified account
+        try:
+            account_permission = AccountPermission.objects.get(user=self.request.user, account=account)
+        except AccountPermission.DoesNotExist:
+            raise PermissionDenied("You do not have permission to create transactions.")
+
+        # Determine permissions and act accordingly
+        if account_permission.permission == 'crud':
+            serializer.save(user=self.request.user)
+        elif account_permission.permission == 'view':
+            raise PermissionDenied("You do not have permission to create transactions.")
+        else:
+            raise PermissionDenied("You do not have permission to create transactions.")
 
     def get_queryset(self):
+        # Filter the queryset to include only transactions for the logged-in user
         return self.queryset.filter(account__users=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        # Override the list method to return transactions based on permissions
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 class AdminTransactionViewSet(viewsets.ViewSet):
     permission_classes = [IsAdminUser]
