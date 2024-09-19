@@ -6,6 +6,7 @@ from .models import InvestmentAccount, Transaction, AccountPermission
 
 class BaseTestCase(APITestCase):
     def setUp(self):
+        # Create a default user and account for base tests
         self.user = User.objects.create_user(username='testuser', password='password')
         self.account = InvestmentAccount.objects.create(name='Test Account')
         AccountPermission.objects.create(user=self.user, account=self.account, permission='crud')
@@ -20,22 +21,26 @@ class BaseTestCase(APITestCase):
 class UserPermissionsTests(BaseTestCase):
     
     def setUp(self):
-        super().setUp()  
+        super().setUp()  # Call the base setup
         
+        # Create user and admin
         self.user = User.objects.create_user(username='user', password='password')
         self.admin = User.objects.create_superuser(username='admin', password='password')
 
+        # Authenticate the user for the tests
         self.authenticate_user('user', 'password')
 
+        # Create investment accounts for different permission levels
         self.account1 = InvestmentAccount.objects.create(name='View Only Account')
         self.account2 = InvestmentAccount.objects.create(name='CRUD Account')
         self.account3 = InvestmentAccount.objects.create(name='Post Only Account')
 
+        # Assign permissions to the user
         AccountPermission.objects.create(user=self.user, account=self.account1, permission='view')
         AccountPermission.objects.create(user=self.user, account=self.account2, permission='crud')
         AccountPermission.objects.create(user=self.user, account=self.account3, permission='post')
 
-        # Adjusted timestamps to match the filter criteria
+        # Create transactions within specific date ranges
         self.transaction1 = Transaction.objects.create(user=self.user, account=self.account2, amount=100, timestamp=timezone.make_aware(timezone.datetime(2024, 1, 15)))
         self.transaction2 = Transaction.objects.create(user=self.user, account=self.account3, amount=200, timestamp=timezone.make_aware(timezone.datetime(2024, 1, 10)))
         self.transaction3 = Transaction.objects.create(user=self.user, account=self.account2, amount=300, timestamp=timezone.make_aware(timezone.datetime(2024, 1, 1)))
