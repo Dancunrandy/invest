@@ -1,6 +1,11 @@
 from rest_framework import permissions
 from .models import AccountPermission, InvestmentAccount, Transaction
 
+# Define permission constants
+VIEW_PERMISSION = 'view'
+CRUD_PERMISSION = 'crud'
+POST_PERMISSION = 'post'
+
 class HasAccountPermission(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         """
@@ -18,11 +23,13 @@ class HasAccountPermission(permissions.BasePermission):
         except AccountPermission.DoesNotExist:
             return False
 
-        if account_permission.permission == 'view':
-            return request.method in permissions.SAFE_METHODS
-        elif account_permission.permission == 'crud':
-            return True
-        elif account_permission.permission == 'post':
-            return request.method == 'POST'
+        return self.check_permission(account_permission.permission, request.method)
 
+    def check_permission(self, permission, method):
+        if permission == VIEW_PERMISSION:
+            return method in permissions.SAFE_METHODS
+        elif permission == CRUD_PERMISSION:
+            return True
+        elif permission == POST_PERMISSION:
+            return method == 'POST'
         return False
