@@ -5,7 +5,6 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from django.utils.dateparse import parse_datetime
 from django.db import models
-
 from .models import InvestmentAccount, Transaction, AccountPermission
 from .serializers import InvestmentAccountSerializer, TransactionSerializer
 from .permissions import HasAccountPermission
@@ -31,10 +30,8 @@ class TransactionViewSet(viewsets.ModelViewSet):
         except AccountPermission.DoesNotExist:
             raise PermissionDenied("You do not have permission to create transactions.")
 
-        if account_permission.permission == 'crud':
+        if account_permission.permission in ['crud', 'post']:
             serializer.save(user=self.request.user)
-        elif account_permission.permission == 'view':
-            raise PermissionDenied("You do not have permission to create transactions.")
         else:
             raise PermissionDenied("You do not have permission to create transactions.")
 
@@ -59,12 +56,15 @@ class AdminTransactionViewSet(viewsets.ViewSet):
 
         if start_date:
             start_date = parse_datetime(start_date)
-            if start_date:
-                transactions = transactions.filter(timestamp__gte=start_date)
+            if start_date is None:
+                return Response({'error': 'Invalid start date format.'}, status=status.HTTP_400_BAD_REQUEST)
+            transactions = transactions.filter(timestamp__gte=start_date)
+
         if end_date:
             end_date = parse_datetime(end_date)
-            if end_date:
-                transactions = transactions.filter(timestamp__lte=end_date)
+            if end_date is None:
+                return Response({'error': 'Invalid end date format.'}, status=status.HTTP_400_BAD_REQUEST)
+            transactions = transactions.filter(timestamp__lte=end_date)
 
         total_balance = transactions.aggregate(total=models.Sum('amount'))['total'] or 0
 
