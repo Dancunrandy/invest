@@ -11,13 +11,8 @@ class HasAccountPermission(permissions.BasePermission):
         """
         Check if the user has permission to access the object based on AccountPermission.
         """
-        if isinstance(obj, InvestmentAccount):
-            account = obj
-        elif isinstance(obj, Transaction):
-            account = obj.account
-        else:
-            return False
-
+        account = obj.account if isinstance(obj, Transaction) else obj
+        
         try:
             account_permission = AccountPermission.objects.get(user=request.user, account=account)
         except AccountPermission.DoesNotExist:
@@ -26,10 +21,18 @@ class HasAccountPermission(permissions.BasePermission):
         return self.check_permission(account_permission.permission, request.method)
 
     def check_permission(self, permission, method):
+        permission_map = {
+            VIEW_PERMISSION: permissions.SAFE_METHODS,
+            CRUD_PERMISSION: True,
+            POST_PERMISSION: ['POST']
+        }
+        
+        allowed_methods = permission_map.get(permission, [])
         if permission == VIEW_PERMISSION:
-            return method in permissions.SAFE_METHODS
+            return method in allowed_methods
         elif permission == CRUD_PERMISSION:
             return True
         elif permission == POST_PERMISSION:
-            return method == 'POST'
+            return method in allowed_methods
+        
         return False
